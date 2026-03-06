@@ -1,0 +1,173 @@
+import { db } from "../firebase/firebase";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit
+} from "firebase/firestore";
+
+export const createUserIfNotExists = async (user) => {
+  const userRef = doc(db, "users", user.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    const newUserData = {
+      name: user.displayName,
+      email: user.email,
+      role: "user",
+      college: null,
+      isBlocked: false,
+      createdAt: new Date().toISOString(),
+      lastVisit: null,
+      totalVisits: 0,
+      visits: []
+    };
+
+    await setDoc(userRef, newUserData);
+    return newUserData;
+  }
+
+  return userSnap.data();
+};
+
+export const updateUserProfile = async (userId, data) => {
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, {
+    ...data,
+    updatedAt: new Date().toISOString()
+  });
+};
+
+export const recordVisitReason = async (userId, reason) => {
+  const userRef = doc(db, "users", userId);
+  const userSnap = await getDoc(userRef);
+
+  if (userSnap.exists()) {
+    const userData = userSnap.data();
+    const newVisit = {
+      reason,
+      timestamp: new Date().toISOString()
+    };
+
+    const visits = userData.visits || [];
+    const updatedVisits = [...visits, newVisit];
+
+    await updateDoc(userRef, {
+      lastVisit: new Date().toISOString(),
+      lastReason: reason,
+      totalVisits: (userData.totalVisits || 0) + 1,
+      visits: updatedVisits
+    });
+  }
+};
+
+export const blockUser = async (userId) => {
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, {
+    isBlocked: true,
+    blockedAt: new Date().toISOString()
+  });
+};
+
+export const unblockUser = async (userId) => {
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, {
+    isBlocked: false,
+    unblockedAt: new Date().toISOString()
+  });
+};
+
+export const getVisitorStats = async (period = "today") => {
+  const usersRef = collection(db, "users");
+  let startDate = new Date();
+
+  if (period === "today") {
+    startDate.setHours(0, 0, 0, 0);
+  } else if (period === "week") {
+    startDate.setDate(startDate.getDate() - 7);
+  } else if (period === "month") {
+    startDate.setDate(1);
+  }
+
+  const q = query(
+    usersRef,
+    where("role", "==", "user"),
+    orderBy("lastVisit", "desc"),
+    limit(1000)
+  );
+
+  const snapshot = await getDocs(q);
+  const visitors = [];
+  let blockedCount = 0;
+  let visitReasons = {};
+
+  snapshot.forEach((doc) => {
+    const userData = doc.data();
+
+    if (userData.isBlocked) {
+      blockedCount++;
+    }
+
+    if (userData.lastVisit && new Date(userData.lastVisit) >= startDate) {
+      visitors.push({
+        id: doc.id,
+        ...userData
+      });
+
+      if (userData.lastReason) {
+        visitReasons[userData.lastReason] =
+          (visitReasons[userData.lastReason] || 0) + 1;
+      }
+    }
+  });
+
+  const mostCommonReason = Object.keys(visitReasons).reduce(
+    (a, b) => (visitReasons[a] > visitReasons[b] ? a : b),
+    "N/A"
+  );
+
+  return {
+    totalVisitors: visitors.length,
+    activeToday: visitors.filter(
+      (v) =>
+        v.lastVisit &&
+        new Date(v.lastVisit).toDateString() === new Date().toDateString()
+    ).length,
+    mostCommonReason: mostCommonReason || "N/A",
+    mostCommonCount: visitReasons[mostCommonReason] || 0,
+    blockedCount,
+    visitors
+  };
+};
+
+export const searchVisitors = async (searchTerm) => {
+  const usersRef = collection(db, "users");
+  const q = query(usersRef, where("role", "==", "user"));
+
+  const snapshot = await getDocs(q);
+  const results = [];
+
+  snapshot.forEach((doc) => {
+    const userData = doc.data();
+    const term = searchTerm.toLowerCase();
+
+    if (
+      userData.email.toLowerCase().includes(term) ||
+      userData.name.toLowerCase().includes(term) ||
+      (userData.college && userData.college.toLowerCase().includes(term))
+    ) {
+      results.push({
+        id: doc.id,
+        ...userData
+      });
+    }
+  });
+
+  return results;
+};
