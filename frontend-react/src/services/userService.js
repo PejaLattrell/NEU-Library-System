@@ -1,4 +1,4 @@
-import { db } from "../firebase/firebase";
+import { db, cloudFunctions } from "../firebase/firebase";
 import {
   doc,
   getDoc,
@@ -11,39 +11,66 @@ import {
   orderBy,
   limit
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { isAdminEmail } from "../config/adminConfig";
+
+const generateEntityQrCallable = httpsCallable(cloudFunctions, "generateEntityQr");
+const logAdminActionCallable = httpsCallable(cloudFunctions, "logAdminAction");
+
+const safeGenerateUserQr = async () => {
+  try {
+    await generateEntityQrCallable({ entityType: "user" });
+  } catch (error) {
+    console.warn("User QR generation skipped:", error?.message || error);
+  }
+};
+
+const safeAuditLog = async (payload) => {
+  try {
+    await logAdminActionCallable(payload);
+  } catch (error) {
+    console.warn("Audit logging skipped:", error?.message || error);
+  }
+};
 
 export const createUserIfNotExists = async (user) => {
   const userRef = doc(db, "users", user.uid);
   const userSnap = await getDoc(userRef);
-  
+
   const shouldBeAdmin = isAdminEmail(user.email);
 
   if (!userSnap.exists()) {
-    // New user - create with appropriate role
     const newUserData = {
-        name: user.displayName,
-        email: user.email,
-        role: shouldBeAdmin ? "admin" : "user",
-        college: null,
-        isBlocked: false,
-        createdAt: new Date().toISOString(),
-        lastVisit: null,
-        totalVisits: 0,
-        visits: []
+      name: user.displayName,
+      email: user.email,
+      role: shouldBeAdmin ? "admin" : "user",
+      college: null,
+      isBlocked: false,
+      createdAt: new Date().toISOString(),
+      lastVisit: null,
+      totalVisits: 0,
+      visits: [],
+      notificationPrefs: {
+        email: false,
+        inApp: true
+      }
     };
 
     await setDoc(userRef, newUserData);
+    await safeGenerateUserQr();
     return newUserData;
-    }
+  }
 
-  // Existing user - check if role needs to be updated
   const userData = userSnap.data();
   if (shouldBeAdmin && userData.role !== "admin") {
-    // Email now in admin list, promote to admin
     const updatedData = { ...userData, role: "admin" };
     await updateDoc(userRef, { role: "admin" });
+    await safeGenerateUserQr();
     return updatedData;
+  }
+
+  if (!userData.qr) {
+    await safeGenerateUserQr();
   }
 
   return userData;
@@ -86,6 +113,15 @@ export const blockUser = async (userId) => {
     isBlocked: true,
     blockedAt: new Date().toISOString()
   });
+
+  await safeAuditLog({
+    action: "USER_BLOCKED",
+    targetType: "user",
+    targetId: userId,
+    details: {
+      isBlocked: true
+    }
+  });
 };
 
 export const unblockUser = async (userId) => {
@@ -93,6 +129,15 @@ export const unblockUser = async (userId) => {
   await updateDoc(userRef, {
     isBlocked: false,
     unblockedAt: new Date().toISOString()
+  });
+
+  await safeAuditLog({
+    action: "USER_UNBLOCKED",
+    targetType: "user",
+    targetId: userId,
+    details: {
+      isBlocked: false
+    }
   });
 };
 
@@ -124,19 +169,20 @@ export const getVisitorStats = async (period = "today", startDateStr = "", endDa
   const snapshot = await getDocs(q);
   const visitors = [];
   let blockedCount = 0;
-  let visitReasons = {};
-  let collegeBreakdown = {};
+  const visitReasons = {};
+  const collegeBreakdown = {};
 
-  snapshot.forEach((doc) => {
-    const userData = doc.data();
+  snapshot.forEach((entry) => {
+    const userData = entry.data();
 
     if (userData.isBlocked) {
       blockedCount++;
     }
 
-    if (userData.lastVisit && new Date(userData.lastVisit) >= startDate && new Date(userData.lastVisit) <= endDate) {
+    const lastVisitDate = userData.lastVisit ? new Date(userData.lastVisit) : null;
+    if (lastVisitDate && lastVisitDate >= startDate && lastVisitDate <= endDate) {
       visitors.push({
-        id: doc.id,
+        id: entry.id,
         ...userData
       });
 
@@ -179,8 +225,8 @@ export const searchVisitors = async (searchTerm) => {
   const snapshot = await getDocs(q);
   const results = [];
 
-  snapshot.forEach((doc) => {
-    const userData = doc.data();
+  snapshot.forEach((entry) => {
+    const userData = entry.data();
     const term = searchTerm.toLowerCase();
 
     if (
@@ -189,7 +235,7 @@ export const searchVisitors = async (searchTerm) => {
       (userData.college && userData.college.toLowerCase().includes(term))
     ) {
       results.push({
-        id: doc.id,
+        id: entry.id,
         ...userData
       });
     }

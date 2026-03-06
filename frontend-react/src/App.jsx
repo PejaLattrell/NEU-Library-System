@@ -8,21 +8,47 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminCRUD from "./pages/AdminCRUD";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AppErrorBoundary from "./components/AppErrorBoundary";
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/setup-profile" element={<ProtectedRoute element={<SetupProfile />} />} />
-        <Route path="/select-reason" element={<ProtectedRoute element={<SelectReason />} />} />
-        <Route path="/welcome" element={<ProtectedRoute element={<Welcome />} />} />
-        <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} requiredRole="user" />} />
-        <Route path="/admin" element={<ProtectedRoute element={<AdminDashboard />} requiredRole="admin" />} />
-        <Route path="/admin/analytics" element={<ProtectedRoute element={<AdminAnalytics />} requiredRole="admin" />} />
-        <Route path="/admin/crud" element={<ProtectedRoute element={<AdminCRUD />} requiredRole="admin" />} />
-      </Routes>
-    </BrowserRouter>
+    <AppErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route
+            path="/setup-profile"
+            element={<ProtectedRoute element={<SetupProfile />} />}
+          />
+          <Route
+            path="/select-reason"
+            element={<ProtectedRoute element={<SelectReason />} />}
+          />
+          <Route
+            path="/welcome"
+            element={<ProtectedRoute element={<Welcome />} />}
+          />
+          <Route
+            path="/dashboard"
+            element={<ProtectedRoute element={<Dashboard />} requiredRole="user" />}
+          />
+          <Route
+            path="/admin"
+            element={<ProtectedRoute element={<AdminDashboard />} requiredRole="admin" />}
+          />
+          <Route
+            path="/admin/analytics"
+            element={<ProtectedRoute element={<AdminAnalytics />} requiredRole="admin" />}
+          />
+          <Route
+            path="/admin/crud"
+            element={<ProtectedRoute element={<AdminCRUD />} requiredRole="admin" />}
+          />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </AppErrorBoundary>
   );
 }
 

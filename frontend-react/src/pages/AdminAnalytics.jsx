@@ -1,6 +1,4 @@
-import { useState, useEffect } from "react";
-import { getAnalyticsData } from "../services/adminService";
-import AdminLayout from "../components/AdminLayout";
+import { useEffect, useMemo, useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -8,12 +6,18 @@ import {
   PointElement,
   LineElement,
   BarElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend
 } from "chart.js";
-import { Line, Bar, Pie } from "react-chartjs-2";
+import AdminLayout from "../components/AdminLayout";
+import AnalyticsFilters from "../components/analytics/AnalyticsFilters";
+import AnalyticsMetricCard from "../components/analytics/AnalyticsMetricCard";
+import PeakVisitHoursChart from "../components/analytics/PeakVisitHoursChart";
+import PopularBooksChart from "../components/analytics/PopularBooksChart";
+import EngagementTrendsChart from "../components/analytics/EngagementTrendsChart";
+import TopReasonsList from "../components/analytics/TopReasonsList";
+import { getAdvancedAnalytics } from "../services/adminService";
 import "../styles/AdminAnalytics.css";
 
 ChartJS.register(
@@ -22,281 +26,165 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend
 );
 
+const toDateInput = (date) => date.toISOString().slice(0, 10);
+
+const buildDefaultRange = () => {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - 29);
+
+  return {
+    startDate: toDateInput(startDate),
+    endDate: toDateInput(endDate)
+  };
+};
+
 function AdminAnalytics() {
+  const [preset, setPreset] = useState("last30days");
+  const [customRange, setCustomRange] = useState(buildDefaultRange);
+  const [queryParams, setQueryParams] = useState({ preset: "last30days" });
   const [analyticsData, setAnalyticsData] = useState(null);
-  const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const data = await getAnalyticsData(period);
-      setAnalyticsData(data);
+      setError("");
+
+      try {
+        const data = await getAdvancedAnalytics(queryParams);
+        setAnalyticsData(data);
+      } catch (fetchError) {
+        setError(fetchError?.message || "Failed to fetch analytics.");
+      }
+
       setLoading(false);
     };
+
     fetchData();
-  }, [period]);
+  }, [queryParams]);
 
-  if (loading) {
-    return <div className="analytics-loading">Loading analytics data...</div>;
-  }
+  const summary = analyticsData?.summary || {
+    totalVisits: 0,
+    totalCheckouts: 0,
+    averageDailyVisits: 0,
+    averageDailyCheckouts: 0,
+    peakHour: "00:00",
+    peakHourVisits: 0
+  };
 
-  if (!analyticsData) {
-    return <div className="analytics-error">Failed to load analytics data</div>;
-  }
+  const rangeLabel = useMemo(() => {
+    if (!analyticsData?.range) {
+      return "";
+    }
 
-  const reasonLabels = Object.keys(analyticsData.visitsByReason);
-  const reasonData = Object.values(analyticsData.visitsByReason);
+    const start = new Date(analyticsData.range.startDate).toLocaleDateString();
+    const end = new Date(analyticsData.range.endDate).toLocaleDateString();
+    return `${start} - ${end}`;
+  }, [analyticsData]);
 
-  const collegeLabels = Object.keys(analyticsData.visitsByCollege);
-  const collegeData = Object.values(analyticsData.visitsByCollege);
+  const handlePresetChange = (nextPreset) => {
+    setPreset(nextPreset);
 
-  const dailyLabels = Object.keys(analyticsData.dailyVisits).sort();
-  const dailyData = dailyLabels.map(date => analyticsData.dailyVisits[date]);
+    if (nextPreset !== "custom") {
+      setQueryParams({ preset: nextPreset });
+    }
+  };
 
-  const colors = [
-    "#667eea",
-    "#764ba2",
-    "#f093fb",
-    "#4facfe",
-    "#00f2fe",
-    "#43e97b",
-    "#fa709a",
-    "#fee140"
-  ];
+  const handleCustomRangeChange = (field, value) => {
+    setCustomRange((previous) => ({
+      ...previous,
+      [field]: value
+    }));
+  };
+
+  const handleApplyCustomRange = () => {
+    if (!customRange.startDate || !customRange.endDate) {
+      setError("Select a valid custom date range first.");
+      return;
+    }
+
+    if (new Date(customRange.startDate) > new Date(customRange.endDate)) {
+      setError("Start date cannot be after end date.");
+      return;
+    }
+
+    setQueryParams({
+      preset: "custom",
+      startDate: customRange.startDate,
+      endDate: customRange.endDate
+    });
+  };
+
+  const handleRefresh = () => {
+    setQueryParams((previous) => ({ ...previous, refreshedAt: Date.now() }));
+  };
 
   return (
-    <AdminLayout title="📊 Library Analytics" subtitle="Detailed visitor statistics and insights">
-      <div className="analytics-content">
-
-      {/* Period Selector */}
-      <div className="period-selector">
-        <button
-          className={`period-btn ${period === "week" ? "active" : ""}`}
-          onClick={() => setPeriod("week")}
-        >
-          This Week
-        </button>
-        <button
-          className={`period-btn ${period === "month" ? "active" : ""}`}
-          onClick={() => setPeriod("month")}
-        >
-          This Month
-        </button>
-        <button
-          className={`period-btn ${period === "year" ? "active" : ""}`}
-          onClick={() => setPeriod("year")}
-        >
-          This Year
-        </button>
-      </div>
-
-      {/* Key Metrics */}
-      <div className="metrics-grid">
-        <div className="metric-card">
-          <h3>Total Visits</h3>
-          <div className="metric-value">{analyticsData.totalVisits}</div>
-          <p className="metric-label">In {period}</p>
-        </div>
-        <div className="metric-card">
-          <h3>Unique Reasons</h3>
-          <div className="metric-value">{reasonLabels.length}</div>
-          <p className="metric-label">Visit types</p>
-        </div>
-        <div className="metric-card">
-          <h3>Colleges/Offices</h3>
-          <div className="metric-value">{collegeLabels.length}</div>
-          <p className="metric-label">Represented</p>
-        </div>
-        <div className="metric-card">
-          <h3>Avg Daily Visits</h3>
-          <div className="metric-value">
-            {dailyLabels.length > 0
-              ? Math.round(analyticsData.totalVisits / dailyLabels.length)
-              : 0}
+    <AdminLayout>
+      <div className="analytics-pro-container">
+        <div className="analytics-pro-header">
+          <div>
+            <h1>Library System Pro Analytics</h1>
+            <p>Track peak hours, popular books, and engagement trends in real time.</p>
           </div>
-          <p className="metric-label">Per day</p>
+          {rangeLabel ? <span className="analytics-pro-range">{rangeLabel}</span> : null}
         </div>
-      </div>
 
-      {/* Charts */}
-      <div className="charts-grid">
-        {/* Daily Visits Line Chart */}
-        <div className="chart-card">
-          <h3>Daily Visits Trend</h3>
-          <Line
-            data={{
-              labels: dailyLabels,
-              datasets: [
-                {
-                  label: "Visits",
-                  data: dailyData,
-                  borderColor: "#667eea",
-                  backgroundColor: "rgba(102, 126, 234, 0.1)",
-                  borderWidth: 2,
-                  tension: 0.4,
-                  fill: true,
-                  pointRadius: 4,
-                  pointBackgroundColor: "#667eea",
-                  pointBorderColor: "#fff"
-                }
-              ]
-            }}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: { position: "top" },
-                title: { display: false }
-              },
-              scales: {
-                y: { beginAtZero: true }
-              }
-            }}
+        <AnalyticsFilters
+          preset={preset}
+          customRange={customRange}
+          onPresetChange={handlePresetChange}
+          onCustomRangeChange={handleCustomRangeChange}
+          onApplyCustomRange={handleApplyCustomRange}
+          onRefresh={handleRefresh}
+          loading={loading}
+        />
+
+        {error ? <div className="analytics-pro-error">{error}</div> : null}
+
+        <div className="analytics-pro-metrics-grid">
+          <AnalyticsMetricCard
+            label="Total Visits"
+            value={summary.totalVisits}
+            hint="All visits in selected range"
+          />
+          <AnalyticsMetricCard
+            label="Total Checkouts"
+            value={summary.totalCheckouts}
+            hint="Checkout frequency"
+          />
+          <AnalyticsMetricCard
+            label="Avg Daily Visits"
+            value={summary.averageDailyVisits}
+            hint="Visits per day"
+          />
+          <AnalyticsMetricCard
+            label="Peak Hour"
+            value={summary.peakHour}
+            hint={`${summary.peakHourVisits} visits`}
           />
         </div>
 
-        {/* Visit Reasons Bar Chart */}
-        <div className="chart-card">
-          <h3>Visits by Reason</h3>
-          <Bar
-            data={{
-              labels: reasonLabels,
-              datasets: [
-                {
-                  label: "Number of Visits",
-                  data: reasonData,
-                  backgroundColor: colors.slice(0, reasonLabels.length),
-                  borderRadius: 6,
-                  borderSkipped: false
-                }
-              ]
-            }}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: { position: "top" },
-                title: { display: false }
-              },
-              scales: {
-                y: { beginAtZero: true }
-              }
-            }}
-          />
-        </div>
+        {loading && !analyticsData ? (
+          <div className="analytics-pro-loading">Loading advanced analytics...</div>
+        ) : (
+          <>
+            <div className="analytics-pro-grid">
+              <PeakVisitHoursChart data={analyticsData?.peakVisitHours || []} />
+              <PopularBooksChart data={analyticsData?.popularBooks || []} />
+              <EngagementTrendsChart data={analyticsData?.engagementTrends || []} />
+            </div>
 
-        {/* Colleges Distribution Pie Chart */}
-        <div className="chart-card">
-          <h3>Visitors by College/Office</h3>
-          <Pie
-            data={{
-              labels: collegeLabels,
-              datasets: [
-                {
-                  label: "Number of Visitors",
-                  data: collegeData,
-                  backgroundColor: colors.slice(0, collegeLabels.length),
-                  borderColor: "#fff",
-                  borderWidth: 2
-                }
-              ]
-            }}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: { position: "right" }
-              }
-            }}
-          />
-        </div>
-
-        {/* Visit Reason Distribution Pie */}
-        <div className="chart-card">
-          <h3>Reason Distribution (%)</h3>
-          <Pie
-            data={{
-              labels: reasonLabels,
-              datasets: [
-                {
-                  label: "Percentage",
-                  data: reasonData,
-                  backgroundColor: colors.slice(0, reasonLabels.length),
-                  borderColor: "#fff",
-                  borderWidth: 2
-                }
-              ]
-            }}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: { position: "right" }
-              }
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Detailed Tables */}
-      <div className="details-section">
-        <div className="detail-table">
-          <h3>Visit Breakdown by Reason</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Reason</th>
-                <th>Count</th>
-                <th>Percentage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reasonLabels.map((reason, idx) => (
-                <tr key={idx}>
-                  <td>{reason}</td>
-                  <td>{reasonData[idx]}</td>
-                  <td>
-                    {((reasonData[idx] / analyticsData.totalVisits) * 100).toFixed(
-                      1
-                    )}
-                    %
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="detail-table">
-          <h3>Visitors by College/Office</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>College/Office</th>
-                <th>Count</th>
-                <th>Percentage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {collegeLabels.map((college, idx) => (
-                <tr key={idx}>
-                  <td>{college || "Not Set"}</td>
-                  <td>{collegeData[idx]}</td>
-                  <td>
-                    {((collegeData[idx] / analyticsData.totalVisits) * 100).toFixed(
-                      1
-                    )}
-                    %
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            <TopReasonsList reasons={analyticsData?.topReasons || []} />
+          </>
+        )}
       </div>
     </AdminLayout>
   );
