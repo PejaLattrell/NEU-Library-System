@@ -1,0 +1,78 @@
+/* Admin Layout Shell */
+.admin-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f8f9fc;
+}
+
+.admin-body {
+  flex: 1;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+}
+
+/* Admin Tab Bar */
+.admin-tab-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 28px;
+  background: white;
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid #e8eaed;
+}
+
+.admin-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.admin-tab:hover {
+  color: var(--text-primary);
+  background: #f8f9fc;
+  transform: none;
+  box-shadow: none;
+}
+
+.admin-tab.active {
+  color: var(--primary);
+  background: rgba(79, 70, 229, 0.08);
+  font-weight: 600;
+  transform: none;
+  box-shadow: none;
+}
+
+.admin-page-content {
+  /* content container */
+}
+
+@media (max-width: 768px) {
+  .admin-body {
+    padding: 16px 16px 40px;
+  }
+
+  .admin-tab-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-tab {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+}

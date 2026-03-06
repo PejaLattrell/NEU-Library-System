@@ -1,0 +1,152 @@
+.announcements-banner-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.announcements-toggle {
+  width: 100%;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s;
+}
+
+.announcements-toggle:hover {
+  opacity: 0.95;
+}
+
+.toggle-icon {
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.toggle-icon.open {
+  transform: rotate(180deg);
+}
+
+.announcements-expanded {
+  max-height: 800px;
+  overflow-y: auto;
+  border-top: 2px solid #e2e8f0;
+}
+
+.announcements-expanded .announcement-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  border-left: none;
+}
+
+.announcements-expanded .announcement-item:last-child {
+  border-bottom: none;
+}
+
+.announcement-item {
+  transition: all 0.2s;
+}
+
+.announcement-item.priority-urgent {
+  background: #fff5f5;
+  border-left: 4px solid #c53030;
+}
+
+.announcement-item.priority-high {
+  background: #fffbeb;
+  border-left: 4px solid #f59e0b;
+}
+
+.announcement-item.priority-normal {
+  background: #f0f4ff;
+  border-left: 4px solid #667eea;
+}
+
+.announcement-item.priority-low {
+  background: #ecfdf5;
+  border-left: 4px solid #10B981;
+}
+
+.announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.announcement-header h4 {
+  font-size: 1rem;
+  color: #1a202c;
+  margin: 0;
+  flex: 1;
+}
+
+.priority-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  margin-left: 12px;
+}
+
+.priority-badge.urgent {
+  background: #c53030;
+  color: white;
+}
+
+.priority-badge.high {
+  background: #f59e0b;
+  color: white;
+}
+
+.priority-badge.normal {
+  background: #667eea;
+  color: white;
+}
+
+.priority-badge.low {
+  background: #10B981;
+  color: white;
+}
+
+.announcement-text {
+  color: #4a5568;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0 0 8px 0;
+}
+
+.announcement-date {
+  font-size: 0.8rem;
+  color: #a0aec0;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .announcements-toggle {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+  }
+
+  .announcement-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .priority-badge {
+    margin-left: 0;
+    margin-top: 6px;
+  }
+
+  .announcements-expanded .announcement-item {
+    padding: 12px 16px;
+  }
+}

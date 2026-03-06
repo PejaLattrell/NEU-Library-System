@@ -5,16 +5,18 @@ import { updateUserProfile } from "../services/userService";
 import "../styles/SetupProfile.css";
 
 const COLLEGES = [
-  "College of Engineering",
+  "College of Informatics and Computing Science",
+  "College of Engineering and Architecture",
   "College of Education",
-  "College of Liberal Arts",
-  "College of Sciences",
+  "College of Arts and Sciences",
   "College of Business and Accountancy",
-  "College of Health Sciences",
-  "College of Architecture and Design",
-  "College of Information Technology",
-  "Office of the President",
-  "Administrative Office",
+  "College of Nursing",
+  "College of Law",
+  "College of Criminology",
+  "College of Medicine",
+  "College of Communications",
+  "Integrated School",
+  "",
   "Other"
 ];
 

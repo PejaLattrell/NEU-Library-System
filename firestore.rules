@@ -11,9 +11,11 @@ service cloud.firestore {
       allow read: if request.auth.uid == userId;
       allow write: if request.auth.uid == userId;
       
-      // Admin can read all users data for dashboard
-      allow read: if request.auth.token.isAdmin == true;
-      allow update: if request.auth.token.isAdmin == true;
+      // Admin (by role in Firestore) can read all users and update them (block/unblock)
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+      allow update: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
     // Block users from checking in if they are blocked
@@ -22,15 +24,39 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBlocked;
       allow read: if request.auth.uid == resource.data.userId 
-        || request.auth.token.isAdmin == true;
+        || (request.auth != null
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
       allow update: if request.auth.uid == resource.data.userId 
         && !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBlocked;
     }
 
+    // Books - any authenticated user can read, only admin can write
+    match /books/{bookId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // Events - any authenticated user can read, only admin can write
+    match /events/{eventId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // Announcements - any authenticated user can read, only admin can write
+    match /announcements/{announcementId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
     // Admin-only access to audit logs
     match /auditLogs/{document=**} {
-      allow read: if request.auth.token.isAdmin == true;
-      allow create: if request.auth.token.isAdmin == true;
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
   }
 }
