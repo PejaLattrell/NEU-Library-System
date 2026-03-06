@@ -1,0 +1,36 @@
+// Firebase Firestore Security Rules
+// Go to Firebase Console → Firestore Database → Rules tab
+// Copy and paste these rules to enforce blocking at the database level
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Allow authenticated users to read/write their own data
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if request.auth.uid == userId;
+      
+      // Admin can read all users data for dashboard
+      allow read: if request.auth.token.isAdmin == true;
+      allow update: if request.auth.token.isAdmin == true;
+    }
+
+    // Block users from checking in if they are blocked
+    match /visits/{document=**} {
+      allow create: if request.auth != null 
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBlocked;
+      allow read: if request.auth.uid == resource.data.userId 
+        || request.auth.token.isAdmin == true;
+      allow update: if request.auth.uid == resource.data.userId 
+        && !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBlocked;
+    }
+
+    // Admin-only access to audit logs
+    match /auditLogs/{document=**} {
+      allow read: if request.auth.token.isAdmin == true;
+      allow create: if request.auth.token.isAdmin == true;
+    }
+  }
+}

@@ -43,7 +43,7 @@ function Login() {
       console.log("User data:", userData);
 
       if (userData.isBlocked) {
-        setError("Your account has been blocked. Please contact the library admin.");
+        setError("🚫 Access Denied. Your account has been blocked. Please contact the library admin for assistance.");
         await auth.signOut();
         setLoading(false);
         return;

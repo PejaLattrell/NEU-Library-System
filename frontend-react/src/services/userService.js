@@ -11,29 +11,42 @@ import {
   orderBy,
   limit
 } from "firebase/firestore";
+import { isAdminEmail } from "../config/adminConfig";
 
 export const createUserIfNotExists = async (user) => {
   const userRef = doc(db, "users", user.uid);
   const userSnap = await getDoc(userRef);
+  
+  const shouldBeAdmin = isAdminEmail(user.email);
 
   if (!userSnap.exists()) {
+    // New user - create with appropriate role
     const newUserData = {
-      name: user.displayName,
-      email: user.email,
-      role: "user",
-      college: null,
-      isBlocked: false,
-      createdAt: new Date().toISOString(),
-      lastVisit: null,
-      totalVisits: 0,
-      visits: []
+        name: user.displayName,
+        email: user.email,
+        role: shouldBeAdmin ? "admin" : "user",
+        college: null,
+        isBlocked: false,
+        createdAt: new Date().toISOString(),
+        lastVisit: null,
+        totalVisits: 0,
+        visits: []
     };
 
     await setDoc(userRef, newUserData);
     return newUserData;
+    }
+
+  // Existing user - check if role needs to be updated
+  const userData = userSnap.data();
+  if (shouldBeAdmin && userData.role !== "admin") {
+    // Email now in admin list, promote to admin
+    const updatedData = { ...userData, role: "admin" };
+    await updateDoc(userRef, { role: "admin" });
+    return updatedData;
   }
 
-  return userSnap.data();
+  return userData;
 };
 
 export const updateUserProfile = async (userId, data) => {
@@ -83,9 +96,11 @@ export const unblockUser = async (userId) => {
   });
 };
 
-export const getVisitorStats = async (period = "today") => {
+export const getVisitorStats = async (period = "today", startDateStr = "", endDateStr = "") => {
   const usersRef = collection(db, "users");
   let startDate = new Date();
+  let endDate = new Date();
+  endDate.setHours(23, 59, 59, 999);
 
   if (period === "today") {
     startDate.setHours(0, 0, 0, 0);
@@ -93,6 +108,10 @@ export const getVisitorStats = async (period = "today") => {
     startDate.setDate(startDate.getDate() - 7);
   } else if (period === "month") {
     startDate.setDate(1);
+  } else if (period === "custom") {
+    startDate = new Date(startDateStr);
+    endDate = new Date(endDateStr);
+    endDate.setHours(23, 59, 59, 999);
   }
 
   const q = query(
@@ -106,6 +125,7 @@ export const getVisitorStats = async (period = "today") => {
   const visitors = [];
   let blockedCount = 0;
   let visitReasons = {};
+  let collegeBreakdown = {};
 
   snapshot.forEach((doc) => {
     const userData = doc.data();
@@ -114,7 +134,7 @@ export const getVisitorStats = async (period = "today") => {
       blockedCount++;
     }
 
-    if (userData.lastVisit && new Date(userData.lastVisit) >= startDate) {
+    if (userData.lastVisit && new Date(userData.lastVisit) >= startDate && new Date(userData.lastVisit) <= endDate) {
       visitors.push({
         id: doc.id,
         ...userData
@@ -123,6 +143,11 @@ export const getVisitorStats = async (period = "today") => {
       if (userData.lastReason) {
         visitReasons[userData.lastReason] =
           (visitReasons[userData.lastReason] || 0) + 1;
+      }
+
+      if (userData.college) {
+        collegeBreakdown[userData.college] =
+          (collegeBreakdown[userData.college] || 0) + 1;
       }
     }
   });
@@ -142,6 +167,7 @@ export const getVisitorStats = async (period = "today") => {
     mostCommonReason: mostCommonReason || "N/A",
     mostCommonCount: visitReasons[mostCommonReason] || 0,
     blockedCount,
+    collegeBreakdown,
     visitors
   };
 };
