@@ -1,20 +1,40 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import AnnouncementsBanner from "../components/AnnouncementsBanner";
+import BookDetailModal from "../components/BookDetailModal";
 import { auth } from "../firebase/firebase";
 import { getBooks, getEvents } from "../services/adminService";
+import { getUserBorrows, getActiveBorrowCount } from "../services/userService";
 import "../styles/Dashboard.css";
 
 function Dashboard() {
-  const [recentBooks, setRecentBooks] = useState([]);
+  const [allBooks, setAllBooks] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [selectedBookIndex, setSelectedBookIndex] = useState(0);
+  const [myBorrows, setMyBorrows] = useState([]);
+  const [activeBorrowCount, setActiveBorrowCount] = useState(0);
 
   const user = auth.currentUser;
   const userName = user?.displayName || "Student";
   const firstName = userName.split(" ")[0];
   const userPhoto = user?.photoURL || null;
   const userEmail = user?.email || "";
+
+  const fetchBorrows = async () => {
+    if (!user) return;
+    try {
+      const [borrows, count] = await Promise.all([
+        getUserBorrows(user.uid),
+        getActiveBorrowCount(user.uid)
+      ]);
+      setMyBorrows(borrows);
+      setActiveBorrowCount(count);
+    } catch (error) {
+      console.error("Error fetching borrows:", error);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -23,7 +43,7 @@ function Dashboard() {
           getBooks(),
           getEvents()
         ]);
-        setRecentBooks(booksData.slice(0, 5));
+        setAllBooks(booksData);
         setEvents(eventsData.slice(0, 3));
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -31,7 +51,20 @@ function Dashboard() {
       setLoading(false);
     };
     fetchData();
+    fetchBorrows();
   }, []);
+
+  const handleBookClick = (book, index) => {
+    setSelectedBook(book);
+    setSelectedBookIndex(index);
+  };
+
+  const handleBorrowSuccess = async () => {
+    await fetchBorrows();
+    const updatedBooks = await getBooks();
+    setAllBooks(updatedBooks);
+    setSelectedBook(null);
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -49,9 +82,26 @@ function Dashboard() {
     ["#a18cd1", "#fbc2eb"],
   ];
 
+  const getBorrowStatusLabel = (borrow) => {
+    if (borrow.status === "returned") return "Returned";
+    const dueDate = borrow.dueDate ? new Date(borrow.dueDate) : null;
+    if (dueDate && dueDate < new Date()) return "Overdue";
+    return "Active";
+  };
+
+  const getBorrowStatusClass = (borrow) => {
+    const label = getBorrowStatusLabel(borrow);
+    if (label === "Returned") return "borrow-status-returned";
+    if (label === "Overdue") return "borrow-status-overdue";
+    return "borrow-status-active";
+  };
+
+  const recentBooks = allBooks.slice(0, 8);
+  const activeBorrows = myBorrows.filter((b) => b.status === "active");
+
   return (
     <div className="dashboard-container">
-      <Navbar />
+      <Navbar onBookSelect={(book) => handleBookClick(book, 0)} />
       
       <div className="dashboard-content">
         <AnnouncementsBanner />
@@ -89,20 +139,20 @@ function Dashboard() {
               </svg>
             </div>
             <div className="stat-text">
-              <span className="stat-value">{recentBooks.length}</span>
-              <span className="stat-label">Books Available</span>
+              <span className="stat-value">{allBooks.length}</span>
+              <span className="stat-label">Books in Library</span>
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-icon-wrap stat-purple">
               <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
-                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/>
               </svg>
             </div>
             <div className="stat-text">
-              <span className="stat-value">{events.length}</span>
-              <span className="stat-label">Upcoming Events</span>
+              <span className="stat-value">{activeBorrowCount}/3</span>
+              <span className="stat-label">Books Borrowed</span>
             </div>
           </div>
 
@@ -123,11 +173,40 @@ function Dashboard() {
         <div className="dashboard-main">
           {/* Left Column */}
           <div className="dashboard-primary">
-            {/* Recent Books */}
-            <div className="card">
+            {/* My Borrowed Books */}
+            {activeBorrows.length > 0 && (
+              <div className="card" id="mybooks">
+                <div className="card-top">
+                  <h2 className="card-title">My Borrowed Books</h2>
+                  <span className="card-badge">{activeBorrows.length} active</span>
+                </div>
+                <div className="borrows-list">
+                  {activeBorrows.map((borrow) => {
+                    const statusLabel = getBorrowStatusLabel(borrow);
+                    const statusClass = getBorrowStatusClass(borrow);
+                    const dueDate = borrow.dueDate ? new Date(borrow.dueDate).toLocaleDateString() : "N/A";
+                    return (
+                      <div key={borrow.id} className="borrow-card">
+                        <div className="borrow-info">
+                          <h4 className="borrow-title">{borrow.bookTitle}</h4>
+                          <p className="borrow-author">by {borrow.bookAuthor}</p>
+                          <div className="borrow-meta">
+                            <span className="borrow-due">Due: {dueDate}</span>
+                            <span className={`borrow-status ${statusClass}`}>{statusLabel}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Books Catalog */}
+            <div className="card" id="books">
               <div className="card-top">
-                <h2 className="card-title">Recently Added Books</h2>
-                <span className="card-badge">{recentBooks.length} books</span>
+                <h2 className="card-title">Browse Books</h2>
+                <span className="card-badge">{allBooks.length} books</span>
               </div>
               <div className="books-grid">
                 {loading ? (
@@ -139,7 +218,7 @@ function Dashboard() {
                   recentBooks.map((book, idx) => {
                     const [c1, c2] = bookColors[idx % bookColors.length];
                     return (
-                      <div key={book.id} className="book-card">
+                      <div key={book.id} className="book-card book-card-clickable" onClick={() => handleBookClick(book, idx)}>
                         <div className="book-thumb" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
                           <span className="book-initial">{book.title?.charAt(0) || "B"}</span>
                         </div>
@@ -153,6 +232,9 @@ function Dashboard() {
                             </span>
                           </div>
                         </div>
+                        <svg className="book-arrow" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/>
+                        </svg>
                       </div>
                     );
                   })
@@ -231,7 +313,7 @@ function Dashboard() {
             <div className="card">
               <h3 className="sidebar-title">Quick Actions</h3>
               <div className="action-list">
-                <a href="#" className="action-item">
+                <a href="#books" className="action-item">
                   <div className="action-icon action-icon-blue">
                     <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
                       <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/>
@@ -245,29 +327,15 @@ function Dashboard() {
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/>
                   </svg>
                 </a>
-                <a href="#" className="action-item">
+                <a href="#mybooks" className="action-item">
                   <div className="action-icon action-icon-purple">
                     <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
                       <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/>
                     </svg>
                   </div>
                   <div className="action-text">
-                    <span className="action-name">My Reservations</span>
-                    <span className="action-desc">View reserved books</span>
-                  </div>
-                  <svg className="action-arrow" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/>
-                  </svg>
-                </a>
-                <a href="#" className="action-item">
-                  <div className="action-icon action-icon-green">
-                    <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
-                    </svg>
-                  </div>
-                  <div className="action-text">
-                    <span className="action-name">Reading History</span>
-                    <span className="action-desc">Your past reads</span>
+                    <span className="action-name">My Borrowed Books</span>
+                    <span className="action-desc">View active borrows</span>
                   </div>
                   <svg className="action-arrow" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/>
@@ -301,6 +369,17 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Book Detail Modal */}
+      {selectedBook && (
+        <BookDetailModal
+          book={selectedBook}
+          onClose={() => setSelectedBook(null)}
+          activeBorrowCount={activeBorrowCount}
+          onBorrowSuccess={handleBorrowSuccess}
+          colorIndex={selectedBookIndex}
+        />
+      )}
     </div>
   );
 }

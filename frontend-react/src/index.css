@@ -39,6 +39,10 @@ html, body, #root {
   height: 100%;
 }
 
+html {
+  overflow-y: scroll;
+}
+
 body {
   margin: 0;
   min-width: 320px;

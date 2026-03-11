@@ -97,6 +97,7 @@
 
 /* Search Box - Clean and Simple */
 .search-box {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -106,6 +107,56 @@
   min-width: 220px;
   border: 1px solid var(--border);
   transition: all 0.2s ease;
+}
+
+.search-results-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 200;
+}
+
+.search-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background: rgba(79, 70, 229, 0.06);
+}
+
+.search-result-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.search-result-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.search-no-results {
+  padding: 16px 14px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 
 .search-box:focus-within {

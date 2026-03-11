@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../firebase/firebase";
 import { getVisitorStats, blockUser, unblockUser } from "../services/userService";
+import { getOverdueCheckouts, returnBook } from "../services/adminService";
 import AdminLayout from "../components/AdminLayout";
 import "../styles/AdminDashboard.css";
 
@@ -12,6 +13,8 @@ function AdminDashboard() {
   const [filteredVisitors, setFilteredVisitors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPeriod, setFilterPeriod] = useState("today");
+  const [overdueCheckouts, setOverdueCheckouts] = useState([]);
+  const [processingReturn, setProcessingReturn] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [customDateRange, setCustomDateRange] = useState({ start: "", end: "" });
@@ -24,8 +27,12 @@ function AdminDashboard() {
       try {
         const user = auth.currentUser;
         if (!user) { navigate("/"); return; }
-        const statsData = await getVisitorStats(filterPeriod);
+        const [statsData, overdueData] = await Promise.all([
+          getVisitorStats(filterPeriod),
+          getOverdueCheckouts()
+        ]);
         setStats(statsData);
+        setOverdueCheckouts(overdueData);
         setVisitors(statsData.visitors || []);
         setFilteredVisitors(statsData.visitors || []);
         setLoading(false);
@@ -67,6 +74,19 @@ function AdminDashboard() {
     setStats(statsData);
     setVisitors(statsData.visitors || []);
     setFilteredVisitors(statsData.visitors || []);
+  };
+
+  const handleReturnBook = async (checkoutId, bookId) => {
+    if (!window.confirm("Mark this book as returned?")) return;
+    setProcessingReturn(checkoutId);
+    try {
+      await returnBook(checkoutId, bookId);
+      setOverdueCheckouts(overdueCheckouts.filter(c => c.id !== checkoutId));
+    } catch (error) {
+      alert("Failed to process return.");
+      console.error(error);
+    }
+    setProcessingReturn(null);
   };
 
   const handleBlockUser = async (userId, e) => {
@@ -173,6 +193,66 @@ function AdminDashboard() {
               <span className="ad-stat-val">{stats.collegeBreakdown ? Object.keys(stats.collegeBreakdown).length : 0}</span>
               <span className="ad-stat-lbl">Colleges Represented</span>
             </div>
+          </div>
+
+          <div className="ad-stat-card">
+            <div className="ad-stat-icon ad-icon-red">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
+                 <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+              </svg>
+            </div>
+            <div className="ad-stat-text">
+              <span className="ad-stat-val">{overdueCheckouts.length}</span>
+              <span className="ad-stat-lbl">Overdue Books</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Overdue Books Table */}
+      {overdueCheckouts.length > 0 && (
+        <div className="ad-table-card" style={{ marginBottom: '24px' }}>
+          <div className="ad-table-header">
+            <h2>Overdue Books</h2>
+            <span className="ad-table-count">{overdueCheckouts.length} {overdueCheckouts.length === 1 ? "book" : "books"}</span>
+          </div>
+          <div className="ad-table-wrap">
+            <table className="ad-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Book Title</th>
+                  <th>Due Date</th>
+                  <th>Days Overdue</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdueCheckouts.map((checkout) => (
+                  <tr key={checkout.id} className="row-overdue">
+                    <td>
+                      <div className="ad-user-info">
+                        <span className="ad-user-name">{checkout.userName}</span>
+                        <span className="ad-user-email">{checkout.userEmail}</span>
+                      </div>
+                    </td>
+                    <td>{checkout.bookTitle}</td>
+                    <td className="ad-td-muted">{new Date(checkout.dueDate).toLocaleDateString()}</td>
+                    <td><span className="ad-visits-count" style={{color: '#dc2626', backgroundColor: '#fef2f2'}}>{checkout.daysOverdue} days</span></td>
+                    <td>
+                      <button
+                        onClick={() => handleReturnBook(checkout.id, checkout.bookId)}
+                        className="ad-action-btn"
+                        style={{ backgroundColor: '#10B981', color: 'white', border: 'none' }}
+                        disabled={processingReturn === checkout.id}
+                      >
+                        {processingReturn === checkout.id ? "Processing..." : "Mark Returned"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

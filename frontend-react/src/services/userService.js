@@ -8,8 +8,9 @@ import {
   query,
   where,
   getDocs,
-  orderBy,
-  limit
+  addDoc,
+  runTransaction,
+  Timestamp
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { isAdminEmail } from "../config/adminConfig";
@@ -151,24 +152,26 @@ export const getVisitorStats = async (period = "today", startDateStr = "", endDa
     startDate.setHours(0, 0, 0, 0);
   } else if (period === "week") {
     startDate.setDate(startDate.getDate() - 7);
+    startDate.setHours(0, 0, 0, 0);
   } else if (period === "month") {
     startDate.setDate(1);
+    startDate.setHours(0, 0, 0, 0);
   } else if (period === "custom") {
     startDate = new Date(startDateStr);
+    startDate.setHours(0, 0, 0, 0);
     endDate = new Date(endDateStr);
     endDate.setHours(23, 59, 59, 999);
   }
 
   const q = query(
     usersRef,
-    where("role", "==", "user"),
-    orderBy("lastVisit", "desc"),
-    limit(1000)
+    where("role", "==", "user")
   );
 
   const snapshot = await getDocs(q);
-  const visitors = [];
+  const allUsers = [];
   let blockedCount = 0;
+  let periodVisitorCount = 0;
   const visitReasons = {};
   const collegeBreakdown = {};
 
@@ -179,12 +182,14 @@ export const getVisitorStats = async (period = "today", startDateStr = "", endDa
       blockedCount++;
     }
 
+    allUsers.push({
+      id: entry.id,
+      ...userData
+    });
+
     const lastVisitDate = userData.lastVisit ? new Date(userData.lastVisit) : null;
     if (lastVisitDate && lastVisitDate >= startDate && lastVisitDate <= endDate) {
-      visitors.push({
-        id: entry.id,
-        ...userData
-      });
+      periodVisitorCount++;
 
       if (userData.lastReason) {
         visitReasons[userData.lastReason] =
@@ -198,14 +203,20 @@ export const getVisitorStats = async (period = "today", startDateStr = "", endDa
     }
   });
 
+  allUsers.sort((a, b) => {
+    const dateA = a.lastVisit ? new Date(a.lastVisit).getTime() : 0;
+    const dateB = b.lastVisit ? new Date(b.lastVisit).getTime() : 0;
+    return dateB - dateA;
+  });
+
   const mostCommonReason = Object.keys(visitReasons).reduce(
     (a, b) => (visitReasons[a] > visitReasons[b] ? a : b),
     "N/A"
   );
 
   return {
-    totalVisitors: visitors.length,
-    activeToday: visitors.filter(
+    totalVisitors: periodVisitorCount,
+    activeToday: allUsers.filter(
       (v) =>
         v.lastVisit &&
         new Date(v.lastVisit).toDateString() === new Date().toDateString()
@@ -214,7 +225,7 @@ export const getVisitorStats = async (period = "today", startDateStr = "", endDa
     mostCommonCount: visitReasons[mostCommonReason] || 0,
     blockedCount,
     collegeBreakdown,
-    visitors
+    visitors: allUsers
   };
 };
 
@@ -242,4 +253,83 @@ export const searchVisitors = async (searchTerm) => {
   });
 
   return results;
+};
+
+// ==================== BORROWING ====================
+const MAX_ACTIVE_BORROWS = 3;
+
+export const getActiveBorrowCount = async (userId) => {
+  const checkoutsRef = collection(db, "checkouts");
+  const q = query(
+    checkoutsRef,
+    where("userId", "==", userId),
+    where("status", "==", "active")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.size;
+};
+
+export const getUserBorrows = async (userId) => {
+  const checkoutsRef = collection(db, "checkouts");
+  const q = query(
+    checkoutsRef,
+    where("userId", "==", userId)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs
+    .map((entry) => ({ id: entry.id, ...entry.data() }))
+    .sort((a, b) => {
+      const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+      const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+      return dateB - dateA;
+    });
+};
+
+export const borrowBook = async (userId, book, borrowData) => {
+  const activeCount = await getActiveBorrowCount(userId);
+  if (activeCount >= MAX_ACTIVE_BORROWS) {
+    throw new Error(`You have already borrowed ${MAX_ACTIVE_BORROWS} books. Please return a book before borrowing another.`);
+  }
+
+  const bookRef = doc(db, "books", book.id);
+
+  const dueDate = new Date(borrowData.borrowDate);
+  dueDate.setDate(dueDate.getDate() + Number(borrowData.duration));
+
+  const checkoutData = {
+    userId,
+    bookId: book.id,
+    bookTitle: book.title || "Unknown",
+    bookAuthor: book.author || "Unknown",
+    borrowDate: borrowData.borrowDate,
+    borrowTime: borrowData.borrowTime,
+    duration: Number(borrowData.duration),
+    dueDate: dueDate.toISOString(),
+    status: "active",
+    createdAt: Timestamp.now(),
+    returnedAt: null
+  };
+
+  await runTransaction(db, async (transaction) => {
+    const bookSnap = await transaction.get(bookRef);
+    if (!bookSnap.exists()) {
+      throw new Error("Book not found.");
+    }
+
+    const bookData = bookSnap.data();
+    const available = typeof bookData.available === "number" ? bookData.available : (bookData.quantity || 0);
+
+    if (available <= 0) {
+      throw new Error("This book is currently unavailable.");
+    }
+
+    transaction.update(bookRef, {
+      available: available - 1
+    });
+  });
+
+  const checkoutsRef = collection(db, "checkouts");
+  const docRef = await addDoc(checkoutsRef, checkoutData);
+
+  return { id: docRef.id, ...checkoutData };
 };

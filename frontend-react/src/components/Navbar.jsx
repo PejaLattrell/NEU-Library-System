@@ -1,15 +1,21 @@
-import { Link } from "react-router-dom";
+
 import { auth, db } from "../firebase/firebase";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { doc, getDoc } from "firebase/firestore";
+import { getBooks } from "../services/adminService";
 import logoImg from "../assets/logo.png";
 import "../styles/Navbar.css";
 
-function Navbar() {
+function Navbar({ onBookSelect }) {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [allBooks, setAllBooks] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -29,6 +35,63 @@ function Navbar() {
 
     fetchUserRole();
   }, []);
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        const books = await getBooks();
+        setAllBooks(books);
+      } catch (error) {
+        console.error("Error fetching books for search:", error);
+      }
+    };
+
+    fetchBooks();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowResults(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSearchChange = (event) => {
+    const term = event.target.value;
+    setSearchTerm(term);
+
+    if (term.trim().length === 0) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    const lowerTerm = term.toLowerCase();
+    const filtered = allBooks.filter((book) =>
+      (book.title || "").toLowerCase().includes(lowerTerm) ||
+      (book.author || "").toLowerCase().includes(lowerTerm) ||
+      (book.category || "").toLowerCase().includes(lowerTerm) ||
+      (book.isbn || "").toLowerCase().includes(lowerTerm)
+    );
+
+    setSearchResults(filtered);
+    setShowResults(true);
+  };
+
+  const handleResultClick = (book) => {
+    setSearchTerm("");
+    setSearchResults([]);
+    setShowResults(false);
+    if (onBookSelect) {
+      onBookSelect(book);
+    } else {
+      navigate("/dashboard");
+    }
+  };
 
   const handleDashboardClick = () => {
     if (userRole === "admin") {
@@ -50,10 +113,10 @@ function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <Link to="/" className="navbar-logo">
+        <div className="navbar-logo" onClick={handleDashboardClick} style={{ cursor: "pointer" }}>
           <img src={logoImg} alt="NEU Logo" className="logo-img" />
           <span className="logo-text">NEU Library</span>
-        </Link>
+        </div>
 
         <div className="nav-menu">
           <button onClick={handleDashboardClick} className="nav-item active">
@@ -62,7 +125,7 @@ function Navbar() {
             </svg>
             Dashboard
           </button>
-          {userRole !== "admin" && (
+          {userRole === "user" && (
             <>
               <a href="#books" className="nav-item">
                 <svg className="nav-svg-icon" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
@@ -81,8 +144,8 @@ function Navbar() {
         </div>
 
         <div className="navbar-right">
-          {userRole !== "admin" && (
-            <div className="search-box">
+          {userRole === "user" && (
+            <div className="search-box" ref={searchRef}>
               <svg className="search-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
                 <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/>
               </svg>
@@ -90,7 +153,28 @@ function Navbar() {
                 type="text" 
                 placeholder="Search books..." 
                 className="search-input"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onFocus={() => { if (searchResults.length > 0) setShowResults(true); }}
               />
+              {showResults && (
+                <div className="search-results-dropdown">
+                  {searchResults.length > 0 ? (
+                    searchResults.slice(0, 8).map((book) => (
+                      <div
+                        key={book.id}
+                        className="search-result-item"
+                        onClick={handleResultClick}
+                      >
+                        <span className="search-result-title">{book.title}</span>
+                        <span className="search-result-meta">by {book.author}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="search-no-results">No books found</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <button onClick={handleLogout} className="logout-btn">

@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { auth, db } from "../firebase/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import FullPageLoader from "./FullPageLoader";
 
@@ -8,10 +9,8 @@ function ProtectedRoute({ element, requiredRole = null }) {
   const [isAuthorized, setIsAuthorized] = useState(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
-        const user = auth.currentUser;
-
         if (!user) {
           setIsAuthorized(false);
           return;
@@ -35,9 +34,9 @@ function ProtectedRoute({ element, requiredRole = null }) {
         console.error("Auth check error:", error);
         setIsAuthorized(false);
       }
-    };
+    });
 
-    checkAuth();
+    return () => unsubscribe();
   }, [requiredRole]);
 
   if (isAuthorized === null) {

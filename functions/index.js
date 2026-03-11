@@ -471,17 +471,55 @@ exports.getAdvancedAnalytics = onCall(async (request) => {
   await assertAdmin(request.auth.uid);
 
   const requestData = request.data || {};
+  const preset = requestData.preset || "";
   const requestedStartDate = normalizeDateValue(requestData.startDate);
   const requestedEndDate = normalizeDateValue(requestData.endDate);
 
-  const endDate = requestedEndDate || new Date();
-  endDate.setHours(23, 59, 59, 999);
+  let startDate;
+  let endDate;
 
-  const startDate = requestedStartDate || new Date(endDate);
-  if (!requestedStartDate) {
-    startDate.setDate(startDate.getDate() - 29);
+  if (preset && preset !== "custom" && !requestedStartDate) {
+    endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    startDate = new Date(endDate);
+
+    switch (preset) {
+      case "today":
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case "last7days":
+        startDate.setDate(startDate.getDate() - 6);
+        break;
+      case "last30days":
+        startDate.setDate(startDate.getDate() - 29);
+        break;
+      case "thisWeek": {
+        const day = startDate.getDay();
+        startDate.setDate(startDate.getDate() - (day === 0 ? 6 : day - 1));
+        break;
+      }
+      case "thisMonth":
+        startDate.setDate(1);
+        break;
+      case "thisYear":
+        startDate.setMonth(0, 1);
+        break;
+      default:
+        startDate.setDate(startDate.getDate() - 29);
+        break;
+    }
+
+    startDate.setHours(0, 0, 0, 0);
+  } else {
+    endDate = requestedEndDate || new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    startDate = requestedStartDate || new Date(endDate);
+    if (!requestedStartDate) {
+      startDate.setDate(startDate.getDate() - 29);
+    }
+    startDate.setHours(0, 0, 0, 0);
   }
-  startDate.setHours(0, 0, 0, 0);
 
   if (startDate > endDate) {
     throw new HttpsError(

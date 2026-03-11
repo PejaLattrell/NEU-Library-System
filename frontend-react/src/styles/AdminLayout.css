@@ -58,7 +58,7 @@
 }
 
 .admin-page-content {
-  /* content container */
+  min-height: 500px;
 }
 
 @media (max-width: 768px) {

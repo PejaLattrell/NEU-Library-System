@@ -675,3 +675,97 @@
     gap: 8px;
   }
 }
+
+/* ==========================================
+   Borrowed Books
+   ========================================== */
+.borrows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.borrow-card {
+  padding: 14px;
+  border-radius: 10px;
+  background: #fafbfc;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.borrow-card:hover {
+  background: white;
+  border-color: #e8eaed;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.borrow-title {
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 2px 0;
+}
+
+.borrow-author {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+}
+
+.borrow-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.borrow-due {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.borrow-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.borrow-status-active {
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--primary);
+}
+
+.borrow-status-overdue {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.borrow-status-returned {
+  background: rgba(34, 197, 94, 0.08);
+  color: #16a34a;
+}
+
+/* Clickable book cards */
+.book-card-clickable {
+  cursor: pointer;
+}
+
+.book-card-clickable:hover {
+  border-color: var(--primary);
+  background: white;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+}
+
+.book-arrow {
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.book-card-clickable:hover .book-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
