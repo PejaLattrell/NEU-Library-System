@@ -72,6 +72,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: center;
+  color: #2d3748; /* Dark text to contrast the white/gray background */
 }
 
 .reason-option:hover {
@@ -113,47 +114,53 @@
 }
 
 .reason-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
 }
 
 .enter-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  padding: 14px 24px;
+  width: 100%;
+  padding: 16px 24px;
   border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
 }
 
 .enter-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35);
 }
 
 .enter-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .logout-btn {
-  background: #e2e8f0;
-  color: #2d3748;
+  background: transparent;
+  color: #718096;
   border: none;
-  padding: 14px 24px;
+  padding: 8px 24px;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .logout-btn:hover:not(:disabled) {
-  background: #cbd5e0;
+  color: #2d3748;
+  text-decoration: underline;
 }
 
 .logout-btn:disabled {

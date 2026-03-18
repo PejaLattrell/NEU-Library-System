@@ -1,3 +1,8 @@
+# firebase config
+firebase.json
+firebase.js
+
+
 # Logs
 logs
 *.log

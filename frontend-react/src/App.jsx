@@ -5,7 +5,6 @@ import SetupProfile from "./pages/SetupProfile";
 import SelectReason from "./pages/SelectReason";
 import Welcome from "./pages/Welcome";
 import AdminDashboard from "./pages/AdminDashboard";
-import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminCRUD from "./pages/AdminCRUD";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppErrorBoundary from "./components/AppErrorBoundary";
@@ -36,10 +35,6 @@ function App() {
           <Route
             path="/admin"
             element={<ProtectedRoute element={<AdminDashboard />} requiredRole="admin" />}
-          />
-          <Route
-            path="/admin/analytics"
-            element={<ProtectedRoute element={<AdminAnalytics />} requiredRole="admin" />}
           />
           <Route
             path="/admin/crud"

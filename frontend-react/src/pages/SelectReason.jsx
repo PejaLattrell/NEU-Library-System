@@ -45,7 +45,7 @@ function SelectReason() {
     <div className="reason-container">
       <div className="reason-card">
         <div className="reason-header">
-          <h1 className="reason-title">Welcome Back!</h1>
+          <h1 className="reason-title">Welcome!</h1>
           <p className="reason-subtitle">Tell us why you're visiting today</p>
         </div>
 

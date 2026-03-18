@@ -1,112 +1,184 @@
-.welcome-container {
-  width: 100%;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* Container with soft background and decorative floating gradient orbs */
+.modern-welcome-container {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  
+  background-color: #F8FAFC;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+  position: relative;
 }
 
-.welcome-content {
-  text-align: center;
-  color: white;
-  animation: fadeInScale 0.6s ease-out;
-}
-
-@keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.welcome-icon {
-  font-size: 5rem;
-  margin-bottom: 20px;
-  animation: bounce 1s ease-in-out infinite;
-}
-
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-}
-
-.welcome-message {
-  font-size: 3rem;
-  margin: 0 0 15px 0;
-  font-weight: 800;
-  letter-spacing: -1px;
-}
-
-.welcome-greeting {
-  font-size: 1.2rem;
-  margin: 0 0 20px 0;
-  opacity: 0.95;
-}
-
-.welcome-redirect {
-  font-size: 1rem;
-  margin: 0 0 30px 0;
-  opacity: 0.85;
-}
-
-.loading-dots {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-top: 30px;
-}
-
-.loading-dots span {
-  width: 12px;
-  height: 12px;
+.modern-welcome-container::before {
+  content: '';
+  position: absolute;
+  top: -20%; left: -10%;
+  width: 50vw; height: 50vw;
+  background: radial-gradient(circle, rgba(109, 40, 217, 0.05) 0%, transparent 70%);
   border-radius: 50%;
-  background: white;
-  animation: dot-bounce 1.4s infinite ease-in-out;
+  pointer-events: none;
 }
 
-.loading-dots span:nth-child(1) {
-  animation-delay: -0.32s;
+.modern-welcome-container::after {
+  content: '';
+  position: absolute;
+  bottom: -20%; right: -10%;
+  width: 60vw; height: 60vw;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.05) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
-.loading-dots span:nth-child(2) {
-  animation-delay: -0.16s;
+/* Floating white card */
+.modern-welcome-card {
+  background: #FFFFFF;
+  width: 100%;
+  max-width: 480px;
+  padding: 64px 48px;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(0,0,0,0.02);
+  text-align: center;
+  position: relative;
+  z-index: 10;
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes dot-bounce {
-  0%, 80%, 100% {
-    opacity: 0.7;
-    transform: scale(0.8);
-  }
-  40% {
-    opacity: 1;
-    transform: scale(1);
-  }
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 768px) {
-  .welcome-icon {
-    font-size: 3rem;
-  }
+/* Typography */
+.modern-welcome-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.5px;
+}
 
-  .welcome-message {
-    font-size: 2rem;
-  }
+.modern-welcome-greeting {
+  font-size: 1.15rem;
+  color: #64748B;
+  margin: 0 0 40px 0;
+  line-height: 1.5;
+}
 
-  .welcome-greeting {
+.modern-welcome-greeting strong {
+  color: #6D28D9;
+  font-weight: 700;
+}
+
+/* SVG Checkmark Animation */
+.welcome-animation-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.checkmark {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 4;
+  stroke: #10B981; /* Emerald 500 */
+  stroke-miterlimit: 10;
+  margin: 0 auto;
+  box-shadow: inset 0px 0px 0px #10B981;
+  animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+}
+
+.checkmark__circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 4;
+  stroke-miterlimit: 10;
+  stroke: #10B981;
+  fill: none;
+  animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark__check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+}
+
+@keyframes stroke {
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes scale {
+  0%, 100% { transform: none; }
+  50% { transform: scale3d(1.1, 1.1, 1); }
+}
+
+@keyframes fill {
+  100% { box-shadow: inset 0px 0px 0px 44px rgba(16, 185, 129, 0.1); }
+}
+
+/* Progress bar redirect section */
+.redirect-section {
+  margin-top: 24px;
+  padding-top: 32px;
+  border-top: 1px solid #F1F5F9;
+  opacity: 0;
+  animation: fadeIn 0.6s ease-out 1.2s forwards; /* Fades in smoothly after checkmark */
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+.redirect-text {
+  font-size: 0.95rem;
+  color: #94A3B8;
+  margin: 0 0 16px 0;
+  font-weight: 500;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background-color: #F1F5F9;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6D28D9, #4C1D95);
+  border-radius: 99px;
+  width: 0%;
+  animation: fillProgress 3s linear forwards; /* 3s matches the JS timeout */
+}
+
+@keyframes fillProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .modern-welcome-container {
+    padding: 24px;
+  }
+  .modern-welcome-card {
+    padding: 48px 32px;
+  }
+  .modern-welcome-title {
+    font-size: 1.8rem;
+  }
+  .modern-welcome-greeting {
     font-size: 1rem;
   }
-
-  .welcome-redirect {
-    font-size: 0.9rem;
+  .checkmark {
+    width: 72px;
+    height: 72px;
   }
 }

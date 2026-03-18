@@ -164,7 +164,7 @@ function Navbar({ onBookSelect }) {
                       <div
                         key={book.id}
                         className="search-result-item"
-                        onClick={handleResultClick}
+                        onClick={() => handleResultClick(book)}
                       >
                         <span className="search-result-title">{book.title}</span>
                         <span className="search-result-meta">by {book.author}</span>
