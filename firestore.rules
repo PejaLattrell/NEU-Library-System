@@ -49,7 +49,11 @@ service cloud.firestore {
 
     match /books/{bookId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['available'])
+      );
+      allow create, delete: if isAdmin();
     }
 
     match /events/{eventId} {
